@@ -1,0 +1,31 @@
+# FastAPI backend
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+
+# File uploads & parsing
+python-multipart==0.0.9
+
+# Document parsing
+megaparse
+pypdf
+python-docx
+python-pptx
+
+# RAG framework (document abstraction only)
+llama-index==0.10.30
+
+# Environment management
+python-dotenv==1.0.1
+
+# Utilities
+tqdm==4.66.2
+
+llama-index-embeddings-huggingface
+sentence-transformers
+
+einops>=0.7.0
+
+pymilvus>=2.4.0
+llama-index-vector-stores-milvus
+
+pymilvus[milvus_lite]>=2.4.0

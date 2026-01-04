@@ -1,0 +1,19 @@
+# Python virtual environment
+docu_venv/
+venv/
+.env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+backend/logs/
+
+# Data artifacts (optional but recommended)
+data/uploads/
+data/parsed/
+
+# OS files
+.DS_Store
+Thumbs.db
