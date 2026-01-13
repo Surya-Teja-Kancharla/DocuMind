@@ -1,1 +1,2 @@
-DocuMind: A Production-Ready Conversational RAG System with Persistent Knowledge Memory
+# DocuMind: A Production-Ready Conversational RAG System with Persistent Knowledge Memory
+
