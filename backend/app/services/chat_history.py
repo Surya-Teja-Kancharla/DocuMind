@@ -1,12 +1,5 @@
-from supabase import create_client
-from backend.app.core.config import SUPABASE_URL, SUPABASE_KEY
-
-
-def get_supabase_client():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        # STEP 5–7 safe: Supabase optional
-        return None
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+# backend/app/services/chat_history.py
+from backend.app.core.config import get_supabase_client
 
 
 def store_chat_message(
@@ -15,14 +8,44 @@ def store_chat_message(
     role: str,
     content: str
 ):
+    """
+    Persist a chat message if Supabase is available.
+    Fail silently if offline.
+    """
     client = get_supabase_client()
-    if client is None:
-        # Supabase not configured yet — safely skip
+    if not client:
         return
 
-    client.table("chat_history").insert({
-        "user_id": user_id,
-        "session_id": session_id,
-        "role": role,
-        "content": content
-    }).execute()
+    try:
+        client.table("chat_messages").insert({
+            "user_id": user_id,
+            "session_id": session_id,
+            "role": role,
+            "content": content
+        }).execute()
+    except Exception:
+        # Silent failure (fallback mode)
+        pass
+
+
+def fetch_chat_history(session_id: str, limit: int = 20):
+    """
+    Fetch chat history if Supabase is available.
+    """
+    client = get_supabase_client()
+    if not client:
+        return []
+
+    try:
+        response = (
+            client
+            .table("chat_messages")
+            .select("role, content")
+            .eq("session_id", session_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return list(reversed(response.data)) if response.data else []
+    except Exception:
+        return []

@@ -23,11 +23,16 @@ class ChatRequest(BaseModel):
 @router.post("/stream")
 def chat_stream(payload: ChatRequest):
 
-    # 1. Load conversation context
+    # 1. Load recent session context (Redis)
     session_messages = get_session_messages(payload.session_id)
 
-    # 2. Persist user message
-    append_session_message(payload.session_id, payload.query)
+    # 2. Persist user message (Redis + Supabase)
+    append_session_message(
+        payload.session_id,
+        "user",
+        payload.query
+    )
+
     store_chat_message(
         user_id=payload.user_id,
         session_id=payload.session_id,
@@ -35,7 +40,7 @@ def chat_stream(payload: ChatRequest):
         content=payload.query
     )
 
-    # 3. Retrieve relevant chunks
+    # 3. Retrieve relevant document chunks
     retrieved_nodes = retrieve_similar_chunks(payload.query)
 
     # 4. Assemble RAG context
@@ -47,18 +52,26 @@ def chat_stream(payload: ChatRequest):
 
     # 5. Stream Gemini response
     def token_stream():
-        assistant_response = ""
+        full_response = []
+
         for token in stream_gemini_response(prompt):
-            assistant_response += token
+            full_response.append(token)
             yield token
 
-        # Persist assistant message at end
-        append_session_message(payload.session_id, assistant_response)
+        final_answer = "".join(full_response)
+
+        # Persist assistant message
+        append_session_message(
+            payload.session_id,
+            "assistant",
+            final_answer
+        )
+
         store_chat_message(
             user_id=payload.user_id,
             session_id=payload.session_id,
             role="assistant",
-            content=assistant_response
+            content=final_answer
         )
 
     return StreamingResponse(
