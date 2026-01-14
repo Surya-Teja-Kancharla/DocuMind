@@ -1,6 +1,6 @@
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List
 
 from backend.app.services.chat_session import (
     get_session_messages,
@@ -8,6 +8,8 @@ from backend.app.services.chat_session import (
 )
 from backend.app.services.chat_history import store_chat_message
 from backend.app.services.retriever import retrieve_similar_chunks
+from backend.app.services.context_assembler import assemble_context
+from backend.app.services.llm import stream_gemini_response
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -18,18 +20,13 @@ class ChatRequest(BaseModel):
     query: str
 
 
-class RetrievedChunk(BaseModel):
-    text: str
-    metadata: dict
+@router.post("/stream")
+def chat_stream(payload: ChatRequest):
 
+    # 1. Load conversation context
+    session_messages = get_session_messages(payload.session_id)
 
-@router.post("/")
-def chat_entrypoint(payload: ChatRequest):
-
-    # 1. Load session context
-    session_context = get_session_messages(payload.session_id)
-
-    # 2. Store user message
+    # 2. Persist user message
     append_session_message(payload.session_id, payload.query)
     store_chat_message(
         user_id=payload.user_id,
@@ -38,21 +35,33 @@ def chat_entrypoint(payload: ChatRequest):
         content=payload.query
     )
 
-    # 3. Retrieve relevant document chunks
+    # 3. Retrieve relevant chunks
     retrieved_nodes = retrieve_similar_chunks(payload.query)
 
-    retrieved_chunks = [
-        RetrievedChunk(
-            text=node.text,
-            metadata=node.metadata
+    # 4. Assemble RAG context
+    prompt = assemble_context(
+        user_query=payload.query,
+        retrieved_nodes=retrieved_nodes,
+        conversation_messages=session_messages
+    )
+
+    # 5. Stream Gemini response
+    def token_stream():
+        assistant_response = ""
+        for token in stream_gemini_response(prompt):
+            assistant_response += token
+            yield token
+
+        # Persist assistant message at end
+        append_session_message(payload.session_id, assistant_response)
+        store_chat_message(
+            user_id=payload.user_id,
+            session_id=payload.session_id,
+            role="assistant",
+            content=assistant_response
         )
-        for node in retrieved_nodes
-    ]
 
-    # 4. (LLM answer generation intentionally deferred)
-
-    return {
-        "session_context": session_context,
-        "retrieved_chunks": retrieved_chunks,
-        "message": "Retrieval successful (answer generation pending)"
-    }
+    return StreamingResponse(
+        token_stream(),
+        media_type="text/plain"
+    )

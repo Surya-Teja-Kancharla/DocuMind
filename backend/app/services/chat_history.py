@@ -1,4 +1,12 @@
-from backend.app.core.config import SUPABASE_CLIENT
+from supabase import create_client
+from backend.app.core.config import SUPABASE_URL, SUPABASE_KEY
+
+
+def get_supabase_client():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        # STEP 5–7 safe: Supabase optional
+        return None
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def store_chat_message(
@@ -7,7 +15,12 @@ def store_chat_message(
     role: str,
     content: str
 ):
-    SUPABASE_CLIENT.table("chat_history").insert({
+    client = get_supabase_client()
+    if client is None:
+        # Supabase not configured yet — safely skip
+        return
+
+    client.table("chat_history").insert({
         "user_id": user_id,
         "session_id": session_id,
         "role": role,
