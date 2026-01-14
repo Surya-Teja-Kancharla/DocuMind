@@ -1,51 +1,43 @@
 from typing import List
-from backend.app.core.config import get_supabase_client, PARSED_DIR
-from backend.app.evaluation.schemas import EvaluationSample
+from datasets import Dataset
+from pathlib import Path
+
+from backend.app.evaluation.qa_generator import generate_qa_pairs_batch
 
 
-def load_parsed_contexts(document_id: str) -> List[str]:
-    path = PARSED_DIR / f"{document_id}.txt"
-    if not path.exists():
-        return []
-
-    text = path.read_text(encoding="utf-8")
-    return [text[i:i+1500] for i in range(0, len(text), 1500)]
+PARSED_DIR = Path("data/parsed")
 
 
-def build_evaluation_dataset(limit: int = 20) -> List[EvaluationSample]:
-    client = get_supabase_client()
-    if not client:
-        raise RuntimeError("Supabase not available for evaluation")
+def build_evaluation_dataset(
+    num_questions_per_doc: int = 3
+) -> Dataset:
+    """
+    Build a dynamic, document-grounded evaluation dataset
+    for RAGAS using parsed documents.
+    """
 
-    rows = (
-        client.table("chat_messages")
-        .select("session_id, role, content")
-        .order("created_at", desc=True)
-        .limit(limit * 2)
-        .execute()
-        .data
+    document_ids = [
+        file.stem
+        for file in PARSED_DIR.glob("*.txt")
+    ]
+
+    qa_samples = generate_qa_pairs_batch(
+        document_ids=document_ids,
+        num_questions=num_questions_per_doc
     )
 
-    dataset = []
-    current_q = None
+    if not qa_samples:
+        raise RuntimeError("No evaluation samples generated")
 
-    for row in reversed(rows):
-        if row["role"] == "user":
-            current_q = row["content"]
+    data = {
+        "question": [],
+        "answer": [],
+        "contexts": []
+    }
 
-        elif row["role"] == "assistant" and current_q:
-            # NOTE: You can improve this by storing document_id per session later
-            contexts = []
-            for file in PARSED_DIR.glob("*.txt"):
-                contexts.extend(load_parsed_contexts(file.stem))
+    for sample in qa_samples:
+        data["question"].append(sample["question"])
+        data["answer"].append(sample["answer"])
+        data["contexts"].append(sample["contexts"])
 
-            dataset.append(
-                EvaluationSample(
-                    question=current_q,
-                    answer=row["content"],
-                    contexts=contexts[:5]
-                )
-            )
-            current_q = None
-
-    return dataset
+    return Dataset.from_dict(data)
