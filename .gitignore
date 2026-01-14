@@ -3,6 +3,11 @@ docu_venv/
 venv/
 .env/
 
+# Environment variables
+.env
+.env.local
+.env.*
+
 # Python cache
 __pycache__/
 *.pyc
@@ -17,3 +22,8 @@ data/parsed/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Evaluation outputs
+backend/app/evaluation/results/
+*.csv
+

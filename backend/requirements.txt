@@ -1,34 +1,64 @@
-# FastAPI backend
+# -----------------------------
+# Backend Framework
+# -----------------------------
 fastapi==0.110.0
 uvicorn[standard]==0.27.1
 
-# File uploads & parsing
+# -----------------------------
+# File Uploads & Validation
+# -----------------------------
 python-multipart==0.0.9
-
-# Document parsing
-megaparse
-pypdf
-python-docx
-python-pptx
-
-# RAG framework (document abstraction only)
-llama-index==0.10.30
-
-# Environment management
 python-dotenv==1.0.1
 
-# Utilities
-tqdm==4.66.2
+# -----------------------------
+# Document Parsing
+# -----------------------------
+megaparse==0.0.31
+pypdf==4.3.1
+python-docx==1.2.0
+python-pptx==1.0.2
 
-llama-index-embeddings-huggingface
-sentence-transformers
+# -----------------------------
+# RAG Framework (PINNED)
+# -----------------------------
+llama-index==0.10.30
+llama-index-embeddings-huggingface==0.2.3
+llama-index-vector-stores-milvus==0.1.23
 
+# -----------------------------
+# Embeddings
+# -----------------------------
+sentence-transformers==5.2.0
 einops>=0.7.0
 
-pymilvus>=2.4.0
-llama-index-vector-stores-milvus
+# -----------------------------
+# Vector Database
+# -----------------------------
+pymilvus==2.6.6
 
-pymilvus[milvus_lite]>=2.4.0
+# -----------------------------
+# LLM (Gemini)
+# -----------------------------
+google-genai==1.57.0
 
-python-dotenv
+# -----------------------------
+# Session Cache
+# -----------------------------
+redis==7.1.0
 
+# -----------------------------
+# Chat Persistence
+# -----------------------------
+supabase==2.27.2
+
+# -----------------------------
+# Evaluation
+# -----------------------------
+ragas==0.3.2
+datasets==2.19.2
+pandas==2.3.3
+
+# -----------------------------
+# Utilities
+# -----------------------------
+tqdm>=4.66.0
