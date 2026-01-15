@@ -1,41 +1,52 @@
 import os
 from typing import Generator
-from google import genai
+from openai import OpenAI
 
 # -----------------------------
-# Gemini Configuration
+# Groq Configuration
 # -----------------------------
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not set")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY is not set")
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = OpenAI(
+    api_key=GROQ_API_KEY,
+    base_url="https://api.groq.com/openai/v1",
+)
 
-MODEL_NAME = "models/gemini-2.5-flash"
+# Recommended Groq models
+MODEL_NAME = "llama-3.1-8b-instant"
+# Alternatives:
+# "llama3-8b-8192"
+# "mixtral-8x7b-32768"
 
 
-def stream_gemini_response(prompt: str) -> Generator[str, None, None]:
+def stream_llm_response(prompt: str) -> Generator[str, None, None]:
     """
-    Stream response tokens from Gemini (chat endpoint).
+    Stream response tokens from Groq.
     Used for /chat/stream.
     """
-    response = client.models.generate_content_stream(
+    stream = client.chat.completions.create(
         model=MODEL_NAME,
-        contents=prompt,
+        messages=[{"role": "user", "content": prompt}],
+        stream=True,
+        temperature=0.2,
     )
 
-    for chunk in response:
-        if chunk.text:
-            yield chunk.text
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            yield delta.content
 
 
 def generate_answer(prompt: str) -> str:
     """
-    Non-streaming Gemini response.
-    Used for evaluation (RAGAS / offline metrics).
+    Non-streaming Groq response.
+    Used for evaluation / QA generation.
     """
-    response = client.models.generate_content(
+    response = client.chat.completions.create(
         model=MODEL_NAME,
-        contents=prompt,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
     )
-    return response.text.strip()
+    return response.choices[0].message.content.strip()
