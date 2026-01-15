@@ -1,17 +1,22 @@
 const API_BASE = import.meta.env.VITE_API_BASE;
 
-export async function streamChat({ sessionId, message, onToken }) {
+export async function streamChat(
+  { userId, sessionId, query },
+  onToken
+) {
   const response = await fetch(`${API_BASE}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      session_id: sessionId,
-      message
+      user_id: userId,        // ✅ REQUIRED
+      session_id: sessionId,  // ✅ REQUIRED
+      query: query            // ✅ REQUIRED
     })
   });
 
-  if (!response.body) {
-    throw new Error("Streaming not supported");
+  if (!response.ok || !response.body) {
+    const err = await response.text();
+    throw new Error(err || "Chat request failed");
   }
 
   const reader = response.body.getReader();

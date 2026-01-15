@@ -5,42 +5,42 @@ const ChatInput = ({
   onChange,
   onSend,
   disabled,
-  attachment,
+  attachments,
   onUpload,
-  onRemoveAttachment
+  onRemove,
 }) => {
   const fileRef = useRef(null);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
-      <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-lg">
+      <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-xl">
 
-        {/* Attachment chip */}
-        {attachment && (
-          <div className="flex items-center gap-3 bg-[#3a3a3a] px-3 py-2 rounded-lg w-fit">
-            <div className="w-8 h-8 rounded bg-red-500 flex items-center justify-center text-white text-sm">
-              PDF
-            </div>
-
-            <div className="text-sm text-white max-w-[180px] truncate">
-              {attachment.name}
-            </div>
-
-            <button
-              onClick={onRemoveAttachment}
-              className="text-white hover:text-red-400"
-            >
-              ✕
-            </button>
+        {/* Attachment chips */}
+        {attachments.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {attachments.map((file, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 bg-[#3a3a3a] px-3 py-1.5 rounded-lg"
+              >
+                <span className="text-xs text-white truncate max-w-[160px]">
+                  {file.name}
+                </span>
+                <button
+                  onClick={() => onRemove(idx)}
+                  className="text-red-400 hover:text-red-300"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Input row */}
         <div className="flex items-center gap-3">
-          {/* Plus button */}
           <button
             onClick={() => fileRef.current.click()}
-            className="text-gray-400 hover:text-white text-xl"
+            className="text-xl text-gray-400 hover:text-white"
             title="Upload document"
           >
             +
@@ -49,7 +49,8 @@ const ChatInput = ({
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.txt,.docx"
+            accept=".pdf,.docx,.txt"
+            multiple
             hidden
             onChange={onUpload}
           />
@@ -57,16 +58,16 @@ const ChatInput = ({
           <input
             value={value}
             onChange={onChange}
-            onKeyDown={e => e.key === "Enter" && onSend()}
-            placeholder="Ask anything"
+            onKeyDown={(e) => e.key === "Enter" && onSend()}
             disabled={disabled}
+            placeholder="Ask anything"
             className="flex-1 bg-transparent outline-none text-white placeholder-gray-400"
           />
 
           <button
             onClick={onSend}
             disabled={disabled}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-9 h-9 flex items-center justify-center"
+            className="bg-blue-600 hover:bg-blue-500 text-white rounded-full w-9 h-9 flex items-center justify-center transition"
           >
             ↑
           </button>

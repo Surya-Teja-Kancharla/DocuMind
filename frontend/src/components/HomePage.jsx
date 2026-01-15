@@ -1,7 +1,9 @@
 import { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import ChatWindow from "../components/ChatWindow";
+import Sidebar from "./Sidebar";
+import ChatWindow from "./ChatWindow";
 import { v4 as uuid } from "uuid";
+
+const SIDEBAR_WIDTH = 256; // matches w-64
 
 const createSession = () => ({
   id: uuid(),
@@ -16,52 +18,62 @@ const createSession = () => ({
 
 const HomePage = () => {
   const [sessions, setSessions] = useState([createSession()]);
-  const [activeSessionId, setActiveSessionId] = useState(sessions[0].id);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeId, setActiveId] = useState(sessions[0].id);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeSession = sessions.find((s) => s.id === activeId);
 
-  const updateSession = (updated) => {
+  const updateSession = (updater) => {
     setSessions((prev) =>
       prev.map((s) =>
-        s.id === activeSessionId
-          ? typeof updated === "function"
-            ? updated(s)
-            : updated
+        s.id === activeId
+          ? typeof updater === "function"
+            ? updater(s)
+            : updater
           : s
       )
     );
   };
 
   const newChat = () => {
-    const session = createSession();
-    setSessions((prev) => [session, ...prev]);
-    setActiveSessionId(session.id);
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
+    const s = createSession();
+    setSessions((prev) => [s, ...prev]);
+    setActiveId(s.id);
+    setSidebarOpen(false);
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen((prev) => !prev);
+  const deleteSession = (id) => {
+    setSessions((prev) => {
+      const remaining = prev.filter((s) => s.id !== id);
+      if (id === activeId && remaining.length > 0) {
+        setActiveId(remaining[0].id);
+      }
+      return remaining.length ? remaining : [createSession()];
+    });
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50">
+    <div className="h-screen w-screen overflow-hidden bg-slate-950">
+      {/* FIXED SIDEBAR */}
       <Sidebar
         sessions={sessions}
-        activeSessionId={activeSessionId}
+        activeSessionId={activeId}
         onSelectSession={(id) => {
-            setActiveSessionId(id);
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          setActiveId(id);
+          setSidebarOpen(false);
         }}
         onNewChat={newChat}
-        open={isSidebarOpen}
-        toggle={toggleSidebar}
+        onDeleteSession={deleteSession}
+        open={sidebarOpen}
+        toggle={() => setSidebarOpen((o) => !o)}
       />
-      
-      <div 
-        className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? "ml-64" : "ml-0"
-        }`}
+
+      {/* MAIN CONTENT — PUSHED BY SIDEBAR */}
+      <div
+        className="h-full transition-all duration-300 ease-in-out"
+        style={{
+          marginLeft: sidebarOpen ? SIDEBAR_WIDTH : 0,
+        }}
       >
         <ChatWindow
           session={activeSession}

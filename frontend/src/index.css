@@ -1,5 +1,5 @@
-/* Import a premium font (Inter) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Premium UI font: Manrope */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,8 +7,7 @@
 
 html, body, #root {
   height: 100%;
-  /* Apply the premium font globally */
-  font-family: 'Inter', sans-serif;
+  font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Optional: makes fonts look smoother on certain displays */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
