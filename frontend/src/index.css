@@ -1,0 +1,15 @@
+/* Import a premium font (Inter) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  /* Apply the premium font globally */
+  font-family: 'Inter', sans-serif;
+  /* Optional: makes fonts look smoother on certain displays */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
