@@ -40,3 +40,9 @@ services:
     depends_on:
       - etcd
       - minio
+
+  redis:
+    image: redis:7
+    container_name: documind-redis
+    ports:
+      - "6379:6379"
