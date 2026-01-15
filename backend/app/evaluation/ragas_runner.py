@@ -4,23 +4,24 @@ from ragas.metrics import (
     context_precision,
     context_recall,
 )
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
 from backend.app.evaluation.evaluation_dataset import build_evaluation_dataset
 import os
+os.environ["RAGAS_MAX_WORKERS"] = "1"
 
 
 def run_ragas_evaluation():
     dataset = build_evaluation_dataset()
 
-    # Gemini LLM (judge)
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=os.environ["GEMINI_API_KEY"],
+    # Groq LLM (OpenAI-compatible)
+    llm = ChatOpenAI(
+        model="openai/gpt-oss-20b",
+        openai_api_key=os.environ["GROQ_API_KEY"],
+        openai_api_base="https://api.groq.com/openai/v1",
         temperature=0,
     )
 
-    # Local embeddings (NO OpenAI)
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -33,7 +34,7 @@ def run_ragas_evaluation():
             context_recall,
         ],
         llm=llm,
-        embeddings=embeddings, 
+        embeddings=embeddings,
     )
 
     return results
