@@ -1,6 +1,6 @@
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Form
 import time
 import uuid
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 
 from backend.app.core.logging import setup_logger
 from backend.app.utils.file_utils import validate_file, validate_file_size
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/upload", tags=["Document Upload"])
 @router.post("/")
 async def upload_document(
     background_tasks: BackgroundTasks,
+    session_id: str = Form(...),              # ✅ ADDED
     file: UploadFile = File(...)
 ):
     start_time = time.time()
@@ -32,15 +33,12 @@ async def upload_document(
         f.write(contents)
 
     logger.info(
-        f"Upload received | file={file.filename} | size={file_size_mb}MB"
+        f"Upload received | file={file.filename} | size={file_size_mb}MB | session={session_id}"
     )
 
     file_hash = compute_file_hash(file_path)
 
     if is_duplicate(file_hash):
-        logger.warning(
-            f"Duplicate upload rejected | file={file.filename}"
-        )
         raise HTTPException(status_code=409, detail="Duplicate document")
 
     register_hash(file_hash)
@@ -51,18 +49,18 @@ async def upload_document(
         ingest_document,
         file_path,
         file.filename,
-        document_id
+        document_id,
+        session_id              # ✅ PASSED
     )
 
     latency_ms = round((time.time() - start_time) * 1000, 2)
 
     logger.info(
-        f"Upload accepted | document_id={document_id} | "
-        f"latency_ms={latency_ms} | file_size_mb={file_size_mb}"
+        f"Upload accepted | document_id={document_id} | session={session_id}"
     )
 
     return {
-        "message": "Document accepted for ingestion",
         "document_id": document_id,
+        "session_id": session_id,
         "status": "processing"
     }

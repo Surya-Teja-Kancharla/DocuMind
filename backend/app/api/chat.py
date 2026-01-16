@@ -14,29 +14,19 @@ from backend.app.services.llm import stream_llm_response
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
-# -----------------------------
-# Request Schema
-# -----------------------------
 class ChatRequest(BaseModel):
     user_id: str
     session_id: str
     query: str
 
 
-# -----------------------------
-# Streaming Chat Endpoint
-# -----------------------------
 @router.post("/stream")
-def chat_stream(payload: ChatRequest):
+async def chat_stream(payload: ChatRequest):
     """
-    Streaming chat endpoint (Groq-backed).
-    Fully typed + Swagger compatible.
+    STEP 7: Streaming RAG chat endpoint.
     """
 
-    # 1. Load recent session context (Redis)
-    session_messages = get_session_messages(payload.session_id)
-
-    # 2. Persist user message
+    # 1. Persist user message FIRST (important)
     append_session_message(payload.session_id, "user", payload.query)
     store_chat_message(
         user_id=payload.user_id,
@@ -45,21 +35,27 @@ def chat_stream(payload: ChatRequest):
         content=payload.query,
     )
 
-    # 3. Retrieve document chunks
-    retrieved_nodes = retrieve_similar_chunks(payload.query)
+    # 2. Load updated session context
+    session_messages = get_session_messages(payload.session_id)
 
-    # 4. Assemble RAG prompt
+    # 3. Retrieve document chunks
+    retrieved_nodes = retrieve_similar_chunks(
+        payload.query,
+        session_id=payload.session_id
+    )
+
+    # 4. Assemble RAG prompt (STEP 6)
     prompt = assemble_context(
         user_query=payload.query,
         retrieved_nodes=retrieved_nodes,
         conversation_messages=session_messages,
     )
 
-    # 5. Stream Groq response
-    def token_stream():
+    # 5. Streaming generator
+    async def token_stream():
         full_response = []
 
-        for token in stream_llm_response(prompt):
+        async for token in stream_llm_response(prompt):
             full_response.append(token)
             yield token
 
@@ -73,4 +69,7 @@ def chat_stream(payload: ChatRequest):
             content=final_answer,
         )
 
-    return StreamingResponse(token_stream(), media_type="text/plain")
+    return StreamingResponse(
+        token_stream(),
+        media_type="text/plain"
+    )

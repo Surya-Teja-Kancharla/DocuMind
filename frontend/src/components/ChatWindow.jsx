@@ -41,19 +41,26 @@ const ChatWindow = ({ session, onUpdateSession }) => {
 
     try {
       for (let i = 0; i < selectedFiles.length; i++) {
-        await uploadDocumentWithProgress(selectedFiles[i], (p) => {
-          const overall =
-            Math.round(
-              (i / selectedFiles.length) * 100 +
-                p / selectedFiles.length
-            );
-          setUploadProgress(overall);
+        await uploadDocumentWithProgress({
+          file: selectedFiles[i],
+          userId: USER_ID,
+          sessionId: session.id,
+          onProgress: (p) => {
+            const overall =
+              Math.round(
+                (i / selectedFiles.length) * 100 +
+                  p / selectedFiles.length
+              );
+            setUploadProgress(overall);
+          },
         });
       }
+
       setDocumentReady(true);
     } catch (err) {
       console.error("Upload failed", err);
       setFiles([]);
+      setDocumentReady(false);
     } finally {
       setUploading(false);
     }
@@ -63,8 +70,8 @@ const ChatWindow = ({ session, onUpdateSession }) => {
   // Send Message (Streaming)
   // -----------------------------
   const sendMessage = async () => {
-    // FIX: Removed !documentReady check so you can send messages anytime
-    if (!input.trim() || uploading) return;
+    // Block sending while upload is in progress or ingestion not finished
+    if (!input.trim() || uploading || !documentReady) return;
 
     const userMsg = { role: "user", content: input };
     const assistantMsg = {
@@ -180,8 +187,7 @@ const ChatWindow = ({ session, onUpdateSession }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onSend={sendMessage}
-            // Only disabled while actively uploading
-            disabled={uploading} 
+            disabled={uploading || !documentReady}
             attachments={files}
             onUpload={handleUpload}
             onRemove={(i) => {

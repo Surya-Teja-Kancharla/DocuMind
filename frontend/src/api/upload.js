@@ -1,39 +1,36 @@
 const API_BASE = import.meta.env.VITE_API_BASE;
 
-/**
- * Upload a SINGLE document with progress
- */
-export function uploadDocumentWithProgress(file, onProgress) {
+export function uploadDocumentWithProgress({
+  file,
+  userId,
+  sessionId,
+  onProgress,
+}) {
+  const xhr = new XMLHttpRequest();
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("user_id", userId);
+  formData.append("session_id", sessionId);
+
+  xhr.open("POST", `${API_BASE}/upload`);
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable && onProgress) {
+      onProgress(Math.round((e.loaded / e.total) * 100));
+    }
+  };
+
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-
-    // 🔥 CRITICAL FIX
-    formData.append("file", file);
-
-    xhr.open("POST", `${API_BASE}/upload/`);
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
-        const percent = Math.round((e.loaded / e.total) * 100);
-        onProgress(percent);
-      }
-    };
-
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(JSON.parse(xhr.responseText));
       } else {
-        reject(
-          new Error(
-            xhr.responseText || `Upload failed (${xhr.status})`
-          )
-        );
+        reject(xhr.responseText);
       }
     };
 
-    xhr.onerror = () => reject(new Error("Network error"));
-
+    xhr.onerror = () => reject("Upload failed");
     xhr.send(formData);
   });
 }
