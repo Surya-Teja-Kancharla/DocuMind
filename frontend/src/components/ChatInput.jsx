@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import clsx from "clsx";
 
 const ChatInput = ({
   value,
@@ -11,10 +12,19 @@ const ChatInput = ({
 }) => {
   const fileRef = useRef(null);
 
+  const tooltip = disabled
+    ? "Indexing documents… Please wait"
+    : "Ask a question";
+
   return (
     <div className="w-full max-w-3xl mx-auto">
-      <div className="bg-[#2f2f2f] rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-xl">
-
+      <div
+        className={clsx(
+          "rounded-2xl px-4 py-3 flex flex-col gap-2 shadow-xl transition-all",
+          disabled ? "bg-[#262626]" : "bg-[#2f2f2f]"
+        )}
+        title={tooltip}
+      >
         {/* Attachment chips */}
         {attachments.length > 0 && (
           <div className="flex gap-2 flex-wrap">
@@ -39,9 +49,15 @@ const ChatInput = ({
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fileRef.current.click()}
-            className="text-xl text-gray-400 hover:text-white"
+            onClick={() => !disabled && fileRef.current.click()}
+            className={clsx(
+              "text-xl transition",
+              disabled
+                ? "text-gray-600 cursor-not-allowed"
+                : "text-gray-400 hover:text-white"
+            )}
             title="Upload document"
+            disabled={disabled}
           >
             +
           </button>
@@ -58,16 +74,25 @@ const ChatInput = ({
           <input
             value={value}
             onChange={onChange}
-            onKeyDown={(e) => e.key === "Enter" && onSend()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !disabled) onSend();
+            }}
             disabled={disabled}
-            placeholder="Ask anything"
-            className="flex-1 bg-transparent outline-none text-white placeholder-gray-400"
+            placeholder={
+              disabled ? "Indexing documents…" : "Ask anything"
+            }
+            className="flex-1 bg-transparent outline-none text-white placeholder-gray-400 disabled:cursor-not-allowed"
           />
 
           <button
             onClick={onSend}
             disabled={disabled}
-            className="bg-blue-600 hover:bg-blue-500 text-white rounded-full w-9 h-9 flex items-center justify-center transition"
+            className={clsx(
+              "rounded-full w-9 h-9 flex items-center justify-center transition",
+              disabled
+                ? "bg-blue-600/40 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-500"
+            )}
           >
             ↑
           </button>

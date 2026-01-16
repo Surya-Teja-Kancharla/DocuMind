@@ -5,31 +5,45 @@ import ChatInput from "./ChatInput";
 import { streamChat } from "../api/chat";
 import { uploadDocumentWithProgress } from "../api/upload";
 
-const USER_ID = "local-user"; // TODO: replace with auth later
+const USER_ID = "local-user";
 
 const ChatWindow = ({ session, onUpdateSession }) => {
   const [input, setInput] = useState("");
-
-  // Upload state
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [documentReady, setDocumentReady] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
+  const containerRef = useRef(null);
   const bottomRef = useRef(null);
 
   const isEmptyConversation =
     session.messages.length === 1 &&
     session.messages[0].role === "assistant";
 
-  // Auto-scroll on new messages
+  // Smart auto-scroll
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = containerRef.current;
+    if (!el) return;
+
+    const nearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+
+    if (nearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [session.messages]);
 
-  // -----------------------------
-  // Document Upload Handler
-  // -----------------------------
+  // Toast on document ready
+  useEffect(() => {
+    if (documentReady) {
+      setShowToast(true);
+      const t = setTimeout(() => setShowToast(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [documentReady]);
+
   const handleUpload = async (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (!selectedFiles.length) return;
@@ -55,22 +69,15 @@ const ChatWindow = ({ session, onUpdateSession }) => {
           },
         });
       }
-
       setDocumentReady(true);
-    } catch (err) {
-      console.error("Upload failed", err);
+    } catch {
       setFiles([]);
-      setDocumentReady(false);
     } finally {
       setUploading(false);
     }
   };
 
-  // -----------------------------
-  // Send Message (Streaming)
-  // -----------------------------
   const sendMessage = async () => {
-    // Block sending while upload is in progress or ingestion not finished
     if (!input.trim() || uploading || !documentReady) return;
 
     const userMsg = { role: "user", content: input };
@@ -87,33 +94,27 @@ const ChatWindow = ({ session, onUpdateSession }) => {
     ];
 
     onUpdateSession({ ...session, messages: updatedMessages });
-
-    const assistantIndex = updatedMessages.length - 1;
     setInput("");
 
+    const assistantIndex = updatedMessages.length - 1;
     let buffer = "";
     let typing = false;
 
     const typeWriter = async () => {
       if (typing) return;
       typing = true;
-
       while (buffer.length > 0) {
         const char = buffer[0];
         buffer = buffer.slice(1);
 
         onUpdateSession((prev) => {
           const msgs = [...prev.messages];
-          msgs[assistantIndex] = {
-            ...msgs[assistantIndex],
-            content: msgs[assistantIndex].content + char,
-          };
+          msgs[assistantIndex].content += char;
           return { ...prev, messages: msgs };
         });
 
         await new Promise((r) => setTimeout(r, 15));
       }
-
       typing = false;
     };
 
@@ -135,15 +136,12 @@ const ChatWindow = ({ session, onUpdateSession }) => {
         msgs[assistantIndex].isStreaming = false;
         return { ...prev, messages: msgs };
       });
-    } catch (err) {
-      console.error("Chat streaming failed", err);
-
+    } catch {
       onUpdateSession((prev) => {
         const msgs = [...prev.messages];
         msgs[assistantIndex] = {
           role: "assistant",
-          content:
-            "⚠️ An error occurred while generating the response.",
+          content: "⚠️ An error occurred while generating the response.",
           isStreaming: false,
         };
         return { ...prev, messages: msgs };
@@ -152,12 +150,20 @@ const ChatWindow = ({ session, onUpdateSession }) => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-900">
-      {/* Welcome / Empty State */}
+    <div className="flex flex-col h-full w-full bg-slate-900 relative">
+      {showToast && (
+        <div className="absolute top-4 right-4 bg-green-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
+          Document indexed successfully
+        </div>
+      )}
+
       {isEmptyConversation ? (
         <WelcomePanel />
       ) : (
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div
+          ref={containerRef}
+          className="flex-1 overflow-y-auto px-6 py-4"
+        >
           {session.messages.map((msg, idx) => (
             <Message key={idx} {...msg} />
           ))}
@@ -165,7 +171,6 @@ const ChatWindow = ({ session, onUpdateSession }) => {
         </div>
       )}
 
-      {/* Upload Progress */}
       {uploading && (
         <div className="w-full max-w-3xl mx-auto mb-2 px-4">
           <div className="bg-slate-700 h-1 rounded overflow-hidden">
@@ -180,24 +185,19 @@ const ChatWindow = ({ session, onUpdateSession }) => {
         </div>
       )}
 
-      {/* Chat Input Area */}
       <div className="flex justify-center px-4 py-8">
-        <div className="w-full max-w-3xl">
-          <ChatInput
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onSend={sendMessage}
-            disabled={uploading || !documentReady}
-            attachments={files}
-            onUpload={handleUpload}
-            onRemove={(i) => {
-              setFiles((prev) =>
-                prev.filter((_, idx) => idx !== i)
-              );
-              setDocumentReady(false);
-            }}
-          />
-        </div>
+        <ChatInput
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onSend={sendMessage}
+          disabled={uploading || !documentReady}
+          attachments={files}
+          onUpload={handleUpload}
+          onRemove={(i) => {
+            setFiles((prev) => prev.filter((_, idx) => idx !== i));
+            setDocumentReady(false);
+          }}
+        />
       </div>
     </div>
   );
