@@ -1,5 +1,7 @@
-# backend/app/services/chat_history.py
 from backend.app.core.config import get_supabase_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def store_chat_message(
@@ -9,11 +11,12 @@ def store_chat_message(
     content: str
 ):
     """
-    Persist a chat message if Supabase is available.
-    Fail silently if offline.
+    Durably persist chat messages to Supabase.
+    Fail soft, but never silently.
     """
     client = get_supabase_client()
     if not client:
+        logger.warning("Supabase unavailable — chat message not persisted")
         return
 
     try:
@@ -23,14 +26,13 @@ def store_chat_message(
             "role": role,
             "content": content
         }).execute()
-    except Exception:
-        # Silent failure (fallback mode)
-        pass
+    except Exception as e:
+        logger.error(f"Supabase insert failed: {e}")
 
 
 def fetch_chat_history(session_id: str, limit: int = 20):
     """
-    Fetch chat history if Supabase is available.
+    Fetch persisted chat history.
     """
     client = get_supabase_client()
     if not client:
@@ -47,5 +49,6 @@ def fetch_chat_history(session_id: str, limit: int = 20):
             .execute()
         )
         return list(reversed(response.data)) if response.data else []
-    except Exception:
+    except Exception as e:
+        logger.error(f"Supabase fetch failed: {e}")
         return []

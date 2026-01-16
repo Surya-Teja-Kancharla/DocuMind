@@ -1,8 +1,17 @@
 from typing import List, Dict
 from backend.app.core.redis import get_redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 SESSION_TTL_SECONDS = 3600
 MAX_CONTEXT_MESSAGES = 6
+
+REDIS_SESSION_PREFIX = "chat:session:"
+
+
+def _session_key(session_id: str) -> str:
+    return f"{REDIS_SESSION_PREFIX}{session_id}"
 
 
 def append_session_message(session_id: str, role: str, content: str):
@@ -10,8 +19,14 @@ def append_session_message(session_id: str, role: str, content: str):
     if not redis_client:
         return
 
-    redis_client.rpush(session_id, f"{role}:{content}")
-    redis_client.expire(session_id, SESSION_TTL_SECONDS)
+    key = _session_key(session_id)
+
+    try:
+        redis_client.rpush(key, f"{role}:{content}")
+        redis_client.ltrim(key, -MAX_CONTEXT_MESSAGES, -1)
+        redis_client.expire(key, SESSION_TTL_SECONDS)
+    except Exception as e:
+        logger.error(f"Redis write failed: {e}")
 
 
 def get_session_messages(session_id: str) -> List[Dict[str, str]]:
@@ -19,11 +34,12 @@ def get_session_messages(session_id: str) -> List[Dict[str, str]]:
     if not redis_client:
         return []
 
+    key = _session_key(session_id)
+
     try:
-        messages = redis_client.lrange(
-            session_id, -MAX_CONTEXT_MESSAGES, -1
-        )
-    except Exception:
+        messages = redis_client.lrange(key, 0, -1)
+    except Exception as e:
+        logger.error(f"Redis read failed: {e}")
         return []
 
     decoded = []
