@@ -63,39 +63,39 @@ DocuMind implements a **3-Tier Architecture** following industry best practices:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    PRESENTATION TIER (React)                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
-│  │ HomePage │  │ Sidebar  │  │ChatWindow│  │ChatInput │       │
-│  │ (Session │  │ (Session │  │(Messages)│  │ (Upload) │       │
-│  │  State)  │  │  List)   │  │          │  │          │       │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
+│                    PRESENTATION TIER (React)                    │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
+│  │ HomePage │  │ Sidebar  │  │ChatWindow│  │ChatInput │         │
+│  │ (Session │  │ (Session │  │(Messages)│  │ (Upload) │         │
+│  │  State)  │  │  List)   │  │          │  │          │         │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘         │
 └─────────────────────────────────────────────────────────────────┘
                               ↕️ HTTP/REST
 ┌─────────────────────────────────────────────────────────────────┐
-│                   APPLICATION TIER (FastAPI)                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   Session    │  │     Chat     │  │    Upload    │         │
-│  │  Management  │  │   Streaming  │  │   Ingestion  │         │
-│  │     API      │  │     API      │  │     API      │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────┐      │
-│  │            RAG ORCHESTRATION LAYER                    │      │
-│  │  • Document Chunking  • Context Assembly              │      │
-│  │  • Embedding Generation • LLM Integration             │      │
-│  │  • Vector Retrieval    • Response Storage             │      │
-│  └──────────────────────────────────────────────────────┘      │
+│                   APPLICATION TIER (FastAPI)                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │   Session    │  │     Chat     │  │    Upload    │           │
+│  │  Management  │  │   Streaming  │  │   Ingestion  │           │
+│  │     API      │  │     API      │  │     API      │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────┐       │
+│  │            RAG ORCHESTRATION LAYER                   │       │
+│  │  • Document Chunking  • Context Assembly             │       │
+│  │  • Embedding Generation • LLM Integration            │       │
+│  │  • Vector Retrieval    • Response Storage            │       │
+│  └──────────────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
                               ↕️ Database Queries
 ┌─────────────────────────────────────────────────────────────────┐
-│                        DATA TIER                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │  Supabase    │  │    Milvus    │  │    Redis     │         │
-│  │ (PostgreSQL) │  │   (Vectors)  │  │   (Cache)    │         │
-│  │              │  │              │  │              │         │
-│  │ • Sessions   │  │ • Embeddings │  │ • Sessions   │         │
-│  │ • Messages   │  │ • Metadata   │  │ • TTL: 1hr   │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
+│                        DATA TIER                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │  Supabase    │  │    Milvus    │  │    Redis     │           │
+│  │ (PostgreSQL) │  │   (Vectors)  │  │   (Cache)    │           │
+│  │              │  │              │  │              │           │
+│  │ • Sessions   │  │ • Embeddings │  │ • Sessions   │           │
+│  │ • Messages   │  │ • Metadata   │  │ • TTL: 1hr   │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
