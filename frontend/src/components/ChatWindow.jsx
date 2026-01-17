@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Message from "./Message";
 import WelcomePanel from "./WelcomePanel";
 import ChatInput from "./ChatInput";
-import { streamChat } from "../api/chat";
+import { streamChat, generateSessionTitle } from "../api/chat";
 import { uploadDocumentWithProgress } from "../api/upload";
 
 const USER_ID = "local-user";
@@ -14,13 +14,13 @@ const ChatWindow = ({ session, onUpdateSession }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [documentReady, setDocumentReady] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
+  const titleGeneratedRef = useRef(false);
 
-  const isEmptyConversation =
-    session.messages.length === 1 &&
-    session.messages[0].role === "assistant";
+  const isEmptyConversation = session.messages.length === 0;
 
   // Smart auto-scroll
   useEffect(() => {
@@ -35,14 +35,24 @@ const ChatWindow = ({ session, onUpdateSession }) => {
     }
   }, [session.messages]);
 
-  // Toast on document ready
+  // Toast notifications
   useEffect(() => {
     if (documentReady) {
-      setShowToast(true);
-      const t = setTimeout(() => setShowToast(false), 2000);
-      return () => clearTimeout(t);
+      showToastNotification("Document indexed successfully");
     }
   }, [documentReady]);
+
+  const showToastNotification = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    const t = setTimeout(() => setShowToast(false), 2000);
+    return () => clearTimeout(t);
+  };
+
+  // Reset title generation flag when session changes
+  useEffect(() => {
+    titleGeneratedRef.current = false;
+  }, [session.id]);
 
   const handleUpload = async (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -60,25 +70,31 @@ const ChatWindow = ({ session, onUpdateSession }) => {
           userId: USER_ID,
           sessionId: session.id,
           onProgress: (p) => {
-            const overall =
-              Math.round(
-                (i / selectedFiles.length) * 100 +
-                  p / selectedFiles.length
-              );
+            const overall = Math.round(
+              (i / selectedFiles.length) * 100 + p / selectedFiles.length
+            );
             setUploadProgress(overall);
           },
         });
       }
       setDocumentReady(true);
-    } catch {
+    } catch (error) {
+      console.error("Upload failed:", error);
       setFiles([]);
+      showToastNotification("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || uploading || !documentReady) return;
+    if (!input.trim() || uploading) return;
+
+    // ✅ Optional: Warn if no document uploaded yet
+    if (!documentReady && session.messages.length === 0) {
+      showToastNotification("💡 Tip: Upload a document for context-aware answers");
+      await new Promise((r) => setTimeout(r, 1500));
+    }
 
     const userMsg = { role: "user", content: input };
     const assistantMsg = {
@@ -87,36 +103,16 @@ const ChatWindow = ({ session, onUpdateSession }) => {
       isStreaming: true,
     };
 
-    const updatedMessages = [
-      ...session.messages,
-      userMsg,
-      assistantMsg,
-    ];
+    const updatedMessages = [...session.messages, userMsg, assistantMsg];
 
     onUpdateSession({ ...session, messages: updatedMessages });
     setInput("");
 
     const assistantIndex = updatedMessages.length - 1;
-    let buffer = "";
-    let typing = false;
 
-    const typeWriter = async () => {
-      if (typing) return;
-      typing = true;
-      while (buffer.length > 0) {
-        const char = buffer[0];
-        buffer = buffer.slice(1);
-
-        onUpdateSession((prev) => {
-          const msgs = [...prev.messages];
-          msgs[assistantIndex].content += char;
-          return { ...prev, messages: msgs };
-        });
-
-        await new Promise((r) => setTimeout(r, 15));
-      }
-      typing = false;
-    };
+    // ✅ FIXED: Direct streaming without typewriter effect
+    // Avoids duplication issues with buffer/typing state
+    let fullResponse = "";
 
     try {
       await streamChat(
@@ -126,17 +122,52 @@ const ChatWindow = ({ session, onUpdateSession }) => {
           query: userMsg.content,
         },
         (chunk) => {
-          buffer += chunk;
-          typeWriter();
+          // ✅ FIXED: Accumulate and update directly
+          fullResponse += chunk;
+          
+          // Update message content immediately
+          onUpdateSession((prev) => {
+            const msgs = [...prev.messages];
+            if (msgs[assistantIndex]) {
+              msgs[assistantIndex] = {
+                ...msgs[assistantIndex],
+                content: fullResponse,
+                isStreaming: true
+              };
+            }
+            return { ...prev, messages: msgs };
+          });
         }
       );
 
+      // Mark streaming as complete
       onUpdateSession((prev) => {
         const msgs = [...prev.messages];
-        msgs[assistantIndex].isStreaming = false;
+        if (msgs[assistantIndex]) {
+          msgs[assistantIndex].isStreaming = false;
+        }
         return { ...prev, messages: msgs };
       });
-    } catch {
+
+      // ✅ AUTO-GENERATE TITLE AFTER FIRST MESSAGE
+      if (
+        !titleGeneratedRef.current &&
+        session.messages.length === 0 &&
+        session.title === "New Chat"
+      ) {
+        titleGeneratedRef.current = true;
+        try {
+          const result = await generateSessionTitle(session.id);
+          onUpdateSession((prev) => ({
+            ...prev,
+            title: result.title,
+          }));
+        } catch (error) {
+          console.error("Title generation failed:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Chat failed:", error);
       onUpdateSession((prev) => {
         const msgs = [...prev.messages];
         msgs[assistantIndex] = {
@@ -151,19 +182,18 @@ const ChatWindow = ({ session, onUpdateSession }) => {
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-900 relative">
+      {/* TOAST NOTIFICATION */}
       {showToast && (
-        <div className="absolute top-4 right-4 bg-green-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
-          Document indexed successfully
+        <div className="absolute top-4 right-4 bg-green-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50 animate-slide-in">
+          {toastMessage}
         </div>
       )}
 
+      {/* MAIN CONTENT */}
       {isEmptyConversation ? (
         <WelcomePanel />
       ) : (
-        <div
-          ref={containerRef}
-          className="flex-1 overflow-y-auto px-6 py-4"
-        >
+        <div ref={containerRef} className="flex-1 overflow-y-auto px-6 py-4">
           {session.messages.map((msg, idx) => (
             <Message key={idx} {...msg} />
           ))}
@@ -171,6 +201,7 @@ const ChatWindow = ({ session, onUpdateSession }) => {
         </div>
       )}
 
+      {/* UPLOAD PROGRESS BAR */}
       {uploading && (
         <div className="w-full max-w-3xl mx-auto mb-2 px-4">
           <div className="bg-slate-700 h-1 rounded overflow-hidden">
@@ -185,12 +216,13 @@ const ChatWindow = ({ session, onUpdateSession }) => {
         </div>
       )}
 
+      {/* CHAT INPUT */}
       <div className="flex justify-center px-4 py-8">
         <ChatInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onSend={sendMessage}
-          disabled={uploading || !documentReady}
+          disabled={uploading}
           attachments={files}
           onUpload={handleUpload}
           onRemove={(i) => {

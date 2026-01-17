@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from backend.app.api.upload import router as upload_router
 from backend.app.api.chat import router as chat_router
+from backend.app.api.sessions import router as sessions_router  # ✅ NEW
 from backend.app.core.logging import setup_logger
 
 logger = setup_logger()
@@ -36,6 +37,7 @@ app.add_middleware(
 # ✅ Routers
 app.include_router(upload_router)
 app.include_router(chat_router)
+app.include_router(sessions_router)  # ✅ NEW
 
 
 @app.get("/health")
