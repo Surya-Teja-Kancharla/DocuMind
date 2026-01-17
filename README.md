@@ -545,22 +545,6 @@ Example response:
 | "Failed to create session" | Check backend logs, verify Supabase tables exist |
 | Page refresh loses state | This is expected, sessions load from database |
 
-### **Common Errors**
-
-```bash
-# UUID generation error
-Error: null value in column "session_id"
-Fix: Use sessions_FIXED.py (generates UUIDs in Python)
-
-# Character duplication
-PPyytthhoonn instead of Python
-Fix: Use ChatWindow_NO_DUPLICATION.jsx (direct streaming)
-
-# Input disabled
-Can't type or upload
-Fix: Use ChatWindow_FIXED.jsx (only disable during upload)
-```
-
 ---
 
 ## 📈 Performance
